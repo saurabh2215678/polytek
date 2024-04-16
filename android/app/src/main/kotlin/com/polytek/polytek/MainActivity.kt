@@ -1,0 +1,6 @@
+package com.polytek.polytek
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity: FlutterActivity() {
+}
