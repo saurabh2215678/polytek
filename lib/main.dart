@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:polytek/common/pallete.dart';
 import 'package:polytek/screens/HomeScreen.dart';
+import 'package:polytek/screens/LoginScreen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,6 +14,29 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    final ColorScheme colorScheme = ColorScheme.fromSeed(
+      brightness: MediaQuery.platformBrightnessOf(context),
+      seedColor: Colors.green,
+    );
+
+    bool LoggedIn = false;
+
+    void getLoggedInUser() async {
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('username');
+      final password = prefs.getString('password');
+      if(username == 'admin' && password == 'admin'){
+        print('username ==');
+        print(username);
+        // Navigator.pushReplacement(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => HomeScreen()),
+        // );
+      }
+    }
+
+    getLoggedInUser();
+
     return MaterialApp(
       title: 'Polytek',
       theme: ThemeData(
@@ -23,9 +49,11 @@ class MyApp extends StatelessWidget {
         // or simply save your changes to "hot reload" in a Flutter IDE).
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
-        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        colorScheme: colorScheme,
+        primarySwatch: Palette.themePallete,
       ),
-      home: const HomeScreen(),
+      home: const LoginScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
