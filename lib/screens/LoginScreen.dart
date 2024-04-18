@@ -73,8 +73,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 shrinkWrap: true,
                 children: <Widget>[
                   svg,
-                  const Text(
-                    'Visitor Registration APP',
+                  Center(
+                    child: Text(
+                      'Visitor Registration APP',
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
