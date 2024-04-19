@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:polytek/common/pallete.dart';
 import 'package:polytek/screens/HomeScreen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:polytek/common/utils.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -15,11 +16,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
 
   final String assetName = 'assets/images/logo.svg';
+  String usernameInputText = '';
+  String passwordInputText = '';
 
-  Map<String, String> UserData = {
-    'username': 'ggh',
-    'password': 'lkj'
-  };
+  
 
   final Widget svg = SvgPicture.asset(
       'assets/images/logo.svg',
@@ -50,15 +50,24 @@ class _LoginScreenState extends State<LoginScreen> {
       )
   );
 
-  Future<void> _saveUserDataToPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('username', UserData['username'] ?? '');
-    await prefs.setString('password', UserData['password'] ?? '');
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => HomeScreen()),
-    );
+  Future<void> _login() async {
+    var userData = DataUtils.UserData;
+    final prefs = await SharedPreferences.getInstance();
+    if(passwordInputText == userData['username'] && passwordInputText == userData['password']){
+      await prefs.setBool('loggedIn', true);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomeScreen()),
+      );
+    }else{
+      await prefs.setBool('loggedIn', false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Incorrect username or password'),
+        ),
+      );
+    }
   }
 
   @override
@@ -86,12 +95,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         labelText: 'User Name',
                         prefixIcon: prefixUserIcon,
                       ),
+                      onChanged: (value) {
+                        setState(() {
+                          usernameInputText = value;
+                        });
+                      },
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                     child: TextFormField(
                       obscureText: true,
+                      onChanged: (value) {
+                        setState(() {
+                          passwordInputText = value;
+                        });
+                      },
                       decoration: InputDecoration(
                         border: UnderlineInputBorder(),
                         labelText: 'Password',
@@ -107,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       textColor: Color(0xffFFFFFF),
                       padding: EdgeInsets.all(12),
                       onPressed: () {
-                        _saveUserDataToPrefs();
+                        _login();
                       },
                       child: Text('Login',
                         style: TextStyle(

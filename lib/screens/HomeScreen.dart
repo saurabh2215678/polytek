@@ -4,8 +4,63 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:polytek/screens/AddVisitorScreen.dart';
 import 'package:polytek/screens/LoginScreen.dart';
-import 'package:polytek/screens/ScannerScreen.dart';
 import 'package:qrscan/qrscan.dart' as scanner;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+
+Map<String, dynamic> parseVCard(String vCardData) {
+  List<String> lines = vCardData.split('\n');
+  Map<String, dynamic> vCardMap = {};
+
+  String? name;
+  String? org;
+  String? email;
+  String? phone;
+  String? country;
+
+  for (String line in lines) {
+    if (line.isNotEmpty) {
+      List<String> parts = line.split(':');
+      if (parts.length >= 2) {
+        String key = parts[0].trim().toLowerCase();
+        String value = parts.sublist(1).join(':').trim();
+
+        if (key == 'n') {
+          List<String> nameParts = value.split(';');
+          if (nameParts.length >= 2) {
+            name = '${nameParts[1]} ${nameParts[0]}'; // Reversed order
+          }
+        } else if (key == 'org') {
+          org = value;
+        } else if (key == 'email') {
+          List<String> emailParts = value.split(':');
+          if (emailParts.length >= 2) {
+            email = emailParts[1]; // Extract email
+          }
+        } else if (key == 'tel') {
+          // Extract only if no specific type is mentioned
+          if (value.startsWith('TEL:')) {
+            phone = value.split(':')[1];
+          }
+        } else if (key == 'adr') {
+          List<String> addressParts = value.split(';');
+          if (addressParts.length > 6) {
+            country = addressParts[6];
+          }
+        }
+      }
+    }
+  }
+
+  if (name != null) vCardMap['name'] = name;
+  if (org != null) vCardMap['org'] = org;
+  if (email != null) vCardMap['email'] = email;
+  if (phone != null) vCardMap['phone'] = phone;
+  if (country != null) vCardMap['country'] = country;
+
+  return vCardMap;
+}
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -34,7 +89,16 @@ final Widget BarIcon = SvgPicture.asset(
     semanticsLabel: 'qr code'
 );
 
-Future<void> _scanQrCodeFn() async {
+Future<void> _logOutFn(context) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('loggedIn', false);
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (context) => LoginScreen()),
+  );
+}
+
+Future<void> _scanQrCodeFn(context) async {
   // Check if camera permission is granted
   var status = await Permission.camera.status;
   if (!status.isGranted) {
@@ -45,11 +109,28 @@ Future<void> _scanQrCodeFn() async {
       return;
     }
   }
-  print('cameraScanResult start ==');
-  // Proceed with scanning
+
   String? cameraScanResult = await scanner.scan();
-  print('cameraScanResult ==');
-  print(cameraScanResult);
+  // print('camera result ==');
+  // print(cameraScanResult);
+  if(cameraScanResult != null){
+
+    // Contact contact = Contact.fromMap(FlutterContacts.vcardToMap(vCardContent));
+    // Map<String, dynamic> contactMap = FlutterContacts.vcardToMap(vCardContent);
+
+    Map<String, dynamic> vCardMap = parseVCard(cameraScanResult);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddVisitorScreen(
+          visitorData: vCardMap,
+        ),
+      ),
+    );
+    print('vCardMap result ==');
+    print(vCardMap);
+  }
+
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -67,10 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Your button placed at the end of the AppBar
           InkWell(
             onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
+              _logOutFn(context);
             },
             child: Padding(
               padding: const EdgeInsets.all(8),
@@ -116,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(width: 40),
             InkWell(
               onTap: () {
-                _scanQrCodeFn();
+                _scanQrCodeFn(context);
               },
               child: Container(
                 width: 100,

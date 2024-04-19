@@ -1,10 +1,15 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:polytek/common/pallete.dart';
+import 'package:polytek/firebase_options.dart';
 import 'package:polytek/screens/HomeScreen.dart';
 import 'package:polytek/screens/LoginScreen.dart';
+import 'package:polytek/screens/StartScreen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -53,7 +58,7 @@ class MyApp extends StatelessWidget {
         colorScheme: colorScheme,
         primarySwatch: Palette.themePallete,
       ),
-      home: const LoginScreen(),
+      home: const StartScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

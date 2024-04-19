@@ -40,6 +40,11 @@ dependencies:
   shared_preferences: ^2.2.3
   qrscan: ^0.3.3
   permission_handler: ^10.2.0
+  http: ^1.2.1
+  image_picker: ^1.1.0
+  firebase_core: ^2.30.0
+  cloud_firestore: ^4.17.0
+  flutter_contacts: ^1.1.7+1
 
 dev_dependencies:
   flutter_test:

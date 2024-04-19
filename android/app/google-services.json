@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "628495741665",
+    "project_id": "polytek-cd559",
+    "storage_bucket": "polytek-cd559.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:628495741665:android:176cf0b7e7dd95691abda0",
+        "android_client_info": {
+          "package_name": "com.polytek.polytek"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1DOA2vpy_Gjn9m_N-GVO1yVN_d78iJt8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
