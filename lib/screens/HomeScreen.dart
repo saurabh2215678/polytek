@@ -8,6 +8,9 @@ import 'package:qrscan/qrscan.dart' as scanner;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
+import '../common/utils.dart';
+
+
 Map<String, dynamic> parseVCard(String vCardData) {
   List<String> lines = vCardData.split('\n');
   Map<String, dynamic> vCardMap = {};
@@ -114,26 +117,34 @@ Future<void> _scanQrCodeFn(context) async {
   // print('camera result ==');
   // print(cameraScanResult);
   if(cameraScanResult != null){
-
-    // Contact contact = Contact.fromMap(FlutterContacts.vcardToMap(vCardContent));
-    // Map<String, dynamic> contactMap = FlutterContacts.vcardToMap(vCardContent);
-
-    Map<String, dynamic> vCardMap = parseVCard(cameraScanResult);
+    var contact = Contact.fromVCard(cameraScanResult);
+  print('cameraScanResult');
+  print(cameraScanResult);
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => AddVisitorScreen(
-          visitorData: vCardMap,
+          visitorData: contact,
         ),
       ),
     );
-    print('vCardMap result ==');
-    print(vCardMap);
   }
 
 }
 
+
+
 class _HomeScreenState extends State<HomeScreen> {
+
+
+
+  @override
+  void initState() {
+    super.initState();
+    // getEnquariesFromFirebase(true);
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,19 +187,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(builder: (context) => AddVisitorScreen()),
                 );
               },
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  border: Border.all(
-                    color: Color(0xffE65E24),
-                    width: 2.0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      border: Border.all(
+                        color: Color(0xffE65E24),
+                        width: 2.0,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(24),
+                    child: VisitorIcon,
                   ),
-                ),
-                padding: const EdgeInsets.all(24),
-                child: VisitorIcon,
+                  SizedBox(height: 6,),
+                  Text('Add Visitor',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500
+                  ),
+                  )
+                ],
               ),
             ),
             SizedBox(width: 40),
@@ -196,19 +219,31 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () {
                 _scanQrCodeFn(context);
               },
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  border: Border.all(
-                    color: Color(0xffE65E24),
-                    width: 2.0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      border: Border.all(
+                        color: Color(0xffE65E24),
+                        width: 2.0,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(24),
+                    child: BarIcon,
                   ),
-                ),
-                padding: const EdgeInsets.all(24),
-                child: BarIcon,
+                  SizedBox(height: 6,),
+                  Text('Scan Card',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500
+                    ),
+                  )
+                ],
               ),
             )
           ],

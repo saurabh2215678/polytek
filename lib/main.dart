@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:polytek/common/pallete.dart';
@@ -6,10 +8,27 @@ import 'package:polytek/screens/HomeScreen.dart';
 import 'package:polytek/screens/LoginScreen.dart';
 import 'package:polytek/screens/StartScreen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+
+import 'common/utils.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseFirestore.instance.settings = Settings(persistenceEnabled: true);
+
+  StreamSubscription<List<ConnectivityResult>> subscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) {
+    // This condition is for demo purposes only to explain every connection type.
+// Use conditions which work for your requirements.
+    if (result.contains(ConnectivityResult.mobile)) {
+      getEnquariesFromFirebase(true);
+    } else if (result.contains(ConnectivityResult.none)) {
+      // No available network types
+    }
+  });
+
+
   runApp(const MyApp());
 }
 

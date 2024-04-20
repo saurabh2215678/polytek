@@ -54,7 +54,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     var userData = DataUtils.UserData;
     final prefs = await SharedPreferences.getInstance();
-    if(passwordInputText == userData['username'] && passwordInputText == userData['password']){
+    print('login console');
+    print(passwordInputText);
+    print(userData['username']);
+    print(passwordInputText);
+    print(userData['password']);
+    if(usernameInputText == userData['username'] && passwordInputText == userData['password']){
       await prefs.setBool('loggedIn', true);
       Navigator.pushReplacement(
         context,

@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_contacts/contact.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:polytek/common/pallete.dart';
 import 'package:polytek/screens/HomeScreen.dart';
@@ -10,9 +13,12 @@ import 'package:http/http.dart' as http;
 import 'package:polytek/common/utils.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:polytek/screens/successScreen.dart';
 
 class AddVisitorScreen extends StatefulWidget {
-  final Map<String, dynamic>? visitorData;
+  final Contact? visitorData;
   const AddVisitorScreen({Key? key, this.visitorData}) : super(key: key);
 
   @override
@@ -148,25 +154,13 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
   List<ProductSegment> ProductSegmentlist = <ProductSegment>[ProductSegment(id: -1, title: 'Product Segment')];
   late ProductSegment ProductSegmentValue = ProductSegmentlist.first;
 
-  Future<void> firebaseData() async {
-    print('started firebase');
-    await FirebaseFirestore.instance
-        .collection('exhibition-list')
-        .get()
-        .then((QuerySnapshot querySnapshot) {
-            querySnapshot.docs.forEach((doc) {
-
-              print('Title: ${doc['id']}, Subtitle: ${doc['title']}');
-            });
-          });
-  }
-
   String _comapnyValue = '';
   String _nameValue = '';
   String _designationValue = '';
   String _phoneValue = '';
   String _emailValue = '';
   String _remarkValue = '';
+  bool internetConnected = false;
 
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
@@ -184,47 +178,285 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
   @override
   void initState() {
     super.initState();
-
-    print('widget.visitorData');
-    print(widget.visitorData);
     if(widget.visitorData != null){
+      print('widget.visitorData');
+
+      Contact? visitorData = widget.visitorData;
+      print(visitorData?.toJson());
       setState(() {
-        _nameValue = widget.visitorData!['name'] ?? '';
-        _comapnyValue = widget.visitorData!['org'] ?? '';
+        if(visitorData?.displayName != ''){
+          _nameValue = visitorData?.displayName ?? '';
+        }else{
+          _nameValue = '${visitorData?.name?.first} ${visitorData?.name?.last}' ?? '';
+        }
+
+        _phoneValue = visitorData?.phones?.first?.number ?? '';
+        _designationValue = visitorData?.organizations?.first?.department ?? '';
+        _emailValue = visitorData?.emails?.first?.address ?? '';
+        _comapnyValue = visitorData?.organizations?.first?.company ?? '';
+        if(visitorData?.addresses != null){
+          if(visitorData!.addresses.length > 0){
+
+            print('visitorData?.addresses?.first?.address');
+            // print(visitorData?.addresses?.first?.address);
+            _remarkValue = visitorData?.addresses?.first?.address ?? '';
+          }
+        }
+
       });
     }
-    // firebaseData();
+    // getEnquariesFromFirebase(true);
     _getExhibitionFn();
     _getCustomerFn();
     _getCountryFn();
     _getProductSegmentFn();
+
+    StreamSubscription<List<ConnectivityResult>> subscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) {
+
+      if (result.contains(ConnectivityResult.mobile)) {
+        setState(() {
+          internetConnected = true;
+        });
+      } else if (result.contains(ConnectivityResult.none)) {
+        setState(() {
+          internetConnected = false;
+        });
+      }
+    });
   }
 
-  Future<void> updateExhibitionToFirebase(Exhibitionlist) async {
-  // the data structure for Exhibitionlist is like this
-    print('Exhibitionlist ==');
-    print(Exhibitionlist);
+  Future<void> updateExhibitionToFirebase(jsonExhibitionList) async {
+    final List<dynamic> exhibitionList = jsonExhibitionList;
+    final collectionReference = FirebaseFirestore.instance.collection('exhibition-list');
+
+    try {
+      final querySnapshot = await collectionReference.get();
+      final List<String> existingIds = [];
+
+      for (final doc in querySnapshot.docs) {
+        final id = doc.data()['id'].toString();
+        if (exhibitionList.any((exhibition) => exhibition['id'].toString() == id)) {
+          await doc.reference.update(exhibitionList.firstWhere((exhibition) => exhibition['id'].toString() == id));
+          print('Document with ID $id updated successfully.');
+        } else {
+          await doc.reference.delete();
+          print('Document with ID $id deleted successfully.');
+        }
+        existingIds.add(id);
+      }
+
+      for (final exhibition in exhibitionList) {
+        final id = exhibition['id'].toString();
+        if (!existingIds.contains(id)) {
+          await collectionReference.add(exhibition);
+          print('Document with ID $id inserted successfully.');
+        }
+      }
+    } catch (e) {
+      print('Error updating documents: $e');
+    }
+  }
+
+  Future<void> updateCustomerToFirebase(jsonCustomerList) async {
+    final List<dynamic> customerList = jsonCustomerList;
+    final collectionReference = FirebaseFirestore.instance.collection('customer-list');
+
+    try {
+      final querySnapshot = await collectionReference.get();
+      final List<String> existingIds = [];
+
+      for (final doc in querySnapshot.docs) {
+        final id = doc.data()['id'].toString();
+        if (customerList.any((customer) => customer['id'].toString() == id)) {
+          await doc.reference.update(customerList.firstWhere((customer) => customer['id'].toString() == id));
+          print('Document with ID $id updated successfully.');
+        } else {
+          await doc.reference.delete();
+          print('Document with ID $id deleted successfully.');
+        }
+        existingIds.add(id);
+      }
+
+      for (final customer in customerList) {
+        final id = customer['id'].toString();
+        if (!existingIds.contains(id)) {
+          await collectionReference.add(customer);
+          print('Document with ID $id inserted successfully.');
+        }
+      }
+    } catch (e) {
+      print('Error updating documents: $e');
+    }
+  }
+
+  Future<void> updateCountryToFirebase(jsonCountryList) async {
+    final List<dynamic> countryList = jsonCountryList;
+    final CollectionReference collectionReference = FirebaseFirestore.instance.collection('country-list');
+
+    // Delete all existing documents in the collection
+    QuerySnapshot snapshot = await collectionReference.get();
+    for (DocumentSnapshot doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
+
+    // Add a single document with all countries
+    await collectionReference.add({'countries': countryList});
+  }
+
+  Future<void> updateProductToFirebase(jsonProductList) async {
+    final List<dynamic> productList = jsonProductList;
+    final CollectionReference collectionReference = FirebaseFirestore.instance.collection('product-list');
+
+    QuerySnapshot snapshot = await collectionReference.get();
+    for (DocumentSnapshot doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
+
+    await collectionReference.add({'products': productList});
+  }
+
+  Future<void> getExhibitionFromFirebase(bool setData) async {
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('exhibition-list')
+        .get();
+    List<Map<dynamic, dynamic>> allData = [];
+    for (DocumentSnapshot doc in querySnapshot.docs) {
+      final dynamic docData = doc.data();
+      if (docData != null && docData is Map<dynamic, dynamic>) {
+        allData.add(Map<dynamic, dynamic>.from(docData)); // Convert to Map<String, dynamic>
+      }
+    }
+    var jsonData = jsonEncode(allData);
+    var jsonDecodedData = jsonDecode(jsonData);
+    setExhibitionFronJson(jsonDecodedData);
+  }
+
+  Future<void> getCustomerFromFirebase(bool setData) async {
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('customer-list')
+        .get();
+    List<Map<dynamic, dynamic>> allData = [];
+    for (DocumentSnapshot doc in querySnapshot.docs) {
+      final dynamic docData = doc.data();
+      if (docData != null && docData is Map<dynamic, dynamic>) {
+        allData.add(Map<dynamic, dynamic>.from(docData)); // Convert to Map<String, dynamic>
+      }
+    }
+    var jsonData = jsonEncode(allData);
+    var jsonDecodedData = jsonDecode(jsonData);
+    setCustomerFromJson(jsonDecodedData);
+  }
+
+  Future<void> getCountryFromFirebase(bool setData) async {
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('country-list')
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+
+      DocumentSnapshot firstDoc = querySnapshot.docs.first;
+
+      dynamic? countriesData = (firstDoc.data() as Map<dynamic, dynamic>?)?['countries'];
+      setCountryFromJson(countriesData);
+    }
+  }
+
+  Future<void> getProductsFromFirebase(bool setData) async {
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('product-list')
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+
+      DocumentSnapshot firstDoc = querySnapshot.docs.first;
+
+      dynamic? productsData = (firstDoc.data() as Map<dynamic, dynamic>?)?['products'];
+      setProductFromJson(productsData);
+    }
+  }
+
+  void setExhibitionFronJson(data){
+    var exhibitionsData = data as List;
+
+    var exhibitions = exhibitionsData.map((exhibitionData) => Exhibition(
+      id: exhibitionData['id'],
+      title: exhibitionData['title'],
+    )).toList();
+
+    setState(() {
+      Exhibitionlist = exhibitions;
+      ExhibitionValue = exhibitions.first;
+    });
+  }
+
+  void setCustomerFromJson(data) {
+    var customerData = data as List;
+    bool idMinusOneExists = customerData.any((customer) => customer['id'] == -1);
+    if (!idMinusOneExists) {
+      customerData.insert(0, {'id': -1, 'title': 'Customer Type'});
+    }
+
+    var customer = customerData.map((customerData) => Customer(
+      id: customerData['id'],
+      title: customerData['title'],
+    )).toList();
+
+    setState(() {
+      CustomerTypelist = customer;
+      CustomerTypeValue = customer.first;
+    });
+  }
+
+  void setCountryFromJson(data) {
+    var countryData = data as List;
+    bool idMinusOneExists = countryData.any((country) => country['id'] == -1);
+    if (!idMinusOneExists) {
+      countryData.insert(0, {'id': -1, 'name': 'Country'});
+    }
+
+    var country = countryData.map((countryData) => Country(
+      id: countryData['id'],
+      name: countryData['name'],
+    )).toList();
+    setState(() {
+      Countrylist = country;
+      CountryValue = country.first;
+    });
+  }
+
+  void setProductFromJson(data) {
+    var productData = data as List;
+    bool idMinusOneExists = productData.any((product) => product['id'] == -1);
+    if (!idMinusOneExists) {
+      productData.insert(0, {'id': -1, 'title': 'Product Segment'});
+    }
+
+    var product = productData.map((productData) => ProductSegment(
+      id: productData['id'],
+      title: productData['display_title'] ?? 'Product Segment',
+    )).toList();
+    setState(() {
+      ProductSegmentlist = product;
+      ProductSegmentValue = product.first;
+    });
   }
 
   Future<void> _getExhibitionFn() async {
     var BaseUri = DataUtils.BaseUri;
+    var netConected = await isInternetAvailable();
+    if(!netConected){
+      getExhibitionFromFirebase(true);
+      return;
+    }
+
     var request = http.Request('POST', Uri.parse('$BaseUri/getExhibitions'));
     http.StreamedResponse response = await request.send();
 
     if (response.statusCode == 200) {
       var resp = await response.stream.bytesToString();
       var jsonResponse = json.decode(resp);
-      var exhibitionsData = jsonResponse['exhibition_list'] as List;
-
-      var exhibitions = exhibitionsData.map((exhibitionData) => Exhibition(
-        id: exhibitionData['id'],
-        title: exhibitionData['title'],
-      )).toList();
-      // updateExhibitionToFirebase(Exhibitionlist);
-      setState(() {
-        Exhibitionlist = exhibitions;
-        ExhibitionValue = exhibitions.first;
-      });
+      setExhibitionFronJson(jsonResponse['exhibition_list']);
+      updateExhibitionToFirebase(jsonResponse['exhibition_list']);
     }
     else {
       print(response.reasonPhrase);
@@ -233,22 +465,19 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
 
   Future<void> _getCustomerFn() async {
     var BaseUri = DataUtils.BaseUri;
+    var netConected = await isInternetAvailable();
+    if(!netConected){
+      getCustomerFromFirebase(true);
+      return;
+    }
     var request = http.Request('POST', Uri.parse('$BaseUri/getCustomerType'));
     http.StreamedResponse response = await request.send();
 
     if (response.statusCode == 200) {
       var resp = await response.stream.bytesToString();
       var jsonResponse = json.decode(resp);
-      var customerData = jsonResponse['customer_type'] as List;
-      customerData.insert(0, {'id': -1, 'title': 'Customer Type'});
-      var customer = customerData.map((customerData) => Customer(
-        id: customerData['id'],
-        title: customerData['title'],
-      )).toList();
-      setState(() {
-        CustomerTypelist = customer;
-        CustomerTypeValue = customer.first;
-      });
+      setCustomerFromJson(jsonResponse['customer_type']);
+      updateCustomerToFirebase(jsonResponse['customer_type']);
     }
     else {
       print(response.reasonPhrase);
@@ -257,22 +486,19 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
 
   Future<void> _getCountryFn() async {
     var BaseUri = DataUtils.BaseUri;
+    var netConected = await isInternetAvailable();
+    if(!netConected){
+      getCountryFromFirebase(true);
+      return;
+    }
     var request = http.Request('POST', Uri.parse('$BaseUri/getCountry'));
     http.StreamedResponse response = await request.send();
 
     if (response.statusCode == 200) {
       var resp = await response.stream.bytesToString();
       var jsonResponse = json.decode(resp);
-      var countryData = jsonResponse['country_list'] as List;
-      countryData.insert(0, {'id': -1, 'name': 'Country'});
-      var country = countryData.map((countryData) => Country(
-        id: countryData['id'],
-        name: countryData['name'],
-      )).toList();
-      setState(() {
-        Countrylist = country;
-        CountryValue = country.first;
-      });
+      setCountryFromJson(jsonResponse['country_list']);
+      updateCountryToFirebase(jsonResponse['country_list']);
     }
     else {
       print(response.reasonPhrase);
@@ -281,22 +507,20 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
 
   Future<void> _getProductSegmentFn() async {
     var BaseUri = DataUtils.BaseUri;
+    var netConected = await isInternetAvailable();
+    if(!netConected){
+      // getExhibitionFromFirebase(true);
+      getProductsFromFirebase(true);
+      return;
+    }
     var request = http.Request('POST', Uri.parse('$BaseUri/getProducts'));
     http.StreamedResponse response = await request.send();
 
     if (response.statusCode == 200) {
       var resp = await response.stream.bytesToString();
       var jsonResponse = json.decode(resp);
-      var productData = jsonResponse['product_list'] as List;
-      productData.insert(0, {'id': -1, 'name': 'Product Segment'});
-      var product = productData.map((productData) => ProductSegment(
-        id: productData['id'],
-        title: productData['display_title'] ?? 'Product Segment',
-      )).toList();
-      setState(() {
-        ProductSegmentlist = product;
-        ProductSegmentValue = product.first;
-      });
+      setProductFromJson(jsonResponse['product_list']);
+      updateProductToFirebase(jsonResponse['product_list']);
     }
     else {
       print(response.reasonPhrase);
@@ -371,12 +595,90 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
     }
   }
 
+  Future<void> _saveDatabyApi(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, imageFile) async {
+
+    var request = http.MultipartRequest('POST',
+        Uri.parse('https://polyteksynergy.tekzini.com/api/v1/saveAppEnquiry'));
+    request.fields.addAll({
+      'exhibition_id': '$exbValue',
+      'remark': '$remark',
+      'customer_type': '$customerType',
+      'company_name': '$companyName',
+      'name': '$name',
+      'designation': '$designation',
+      'email': '$email',
+      'phone': '$phone',
+      'country_id': '$country',
+      'product_id': '$product',
+    });
+
+    if (imageFile != null) {
+      request.files.add(await http.MultipartFile.fromPath('images[]', imageFile.path));
+    }
+
+    http.StreamedResponse response = await request.send();
+
+    if (response.statusCode == 200) {
+      print('success');
+      print(await response.stream.bytesToString());
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => SuccessScreen()),
+      );
+    } else {
+      print('error .reasonPhrase');
+      print(response.reasonPhrase);
+    }
+  }
+
+  Future<void> _saveDatatoFirebase(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, imageFile, savedByApi) async {
+
+    Map<String, dynamic> formData = {
+      'exbValue': exbValue,
+      'customerType': customerType,
+      'companyName': companyName,
+      'name': name,
+      'designation': designation,
+      'email': email,
+      'remark': remark,
+      'phone': phone,
+      'country': country,
+      'product': product,
+      'savedByApi': savedByApi,
+      'timestamp': FieldValue.serverTimestamp(), // Include a timestamp
+    };
+    var netConected = await isInternetAvailable();
+    // If an image is provided, save it to Firebase Storage and include its URL in the form data
+    if (imageFile != null && netConected) {
+      firebase_storage.Reference storageReference = firebase_storage.FirebaseStorage.instance
+          .ref()
+          .child('images/${DateTime.now().millisecondsSinceEpoch}_${imageFile.name}');
+
+      await storageReference.putFile(File(imageFile.path));
+
+      // Obtain download URL
+      String imageUrl = await storageReference.getDownloadURL();
+
+      formData['imageUrl'] = imageUrl; // Include the download URL of the image
+    }
+
+    // Save data to Firestore
+    await FirebaseFirestore.instance.collection('enquiries').add(formData);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => SuccessScreen()),
+    );
+    print('Form data submitted successfully!');
+  }
+
+
 
   Future<void> _SubmitForm() async {
     setState(() {
       formSubmitted = true;
     });
     _validateAndSubmitForm();
+    var netConected = await isInternetAvailable();
     if (!ExbErr && !customerErr && !NameErr && !PhoneErr && !ProductErr) {
       setState(() {
         formSubmitting = true;
@@ -392,39 +694,27 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
       int country = CountryValue.id;
       int product = ProductSegmentValue.id;
       XFile? imageFile = _image;
+      bool savedByApi = false;
+      bool savedByApiwithNet = true;
 
-      var request = http.MultipartRequest('POST',
-          Uri.parse('https://polyteksynergy.tekzini.com/api/v1/saveAppEnquiry'));
-      request.fields.addAll({
-        'exhibition_id': '$exbValue',
-        'remark': '$remark',
-        'customer_type': '$customerType',
-        'company_name': '$companyName',
-        'name': '$name',
-        'designation': '$designation',
-        'email': '$email',
-        'phone': '$phone',
-        'country_id': '$country',
-        'product_id': '$product',
-      });
+      if(!netConected){
+        Future.delayed(Duration(seconds: 2), () {
+          setState(() {
+            formSubmitting = false;
+          });
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => SuccessScreen()),
+          );
+        });
+        await _saveDatatoFirebase(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, imageFile, savedByApi);
 
-      if (imageFile != null) {
-        request.files.add(await http.MultipartFile.fromPath('images[]', imageFile.path));
+
+      }else{
+        await _saveDatatoFirebase(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, imageFile, savedByApiwithNet);
+        await _saveDatabyApi(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, imageFile);
       }
 
-      http.StreamedResponse response = await request.send();
-
-      if (response.statusCode == 200) {
-        print('success');
-        print(await response.stream.bytesToString());
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
-        );
-      } else {
-        print('error .reasonPhrase');
-        print(response.reasonPhrase);
-      }
       setState(() {
         formSubmitting = false;
       });
@@ -445,11 +735,8 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
 
   }
 
-
-
   @override
   Widget build(BuildContext context) {
-    // return Container();
     return Scaffold(
         backgroundColor: Color(0xffF9F5F4),
         appBar: AppBar(
@@ -621,6 +908,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
                   child: TextFormField(
+                    initialValue: _designationValue,
                     decoration: InputDecoration(
                         border: UnderlineInputBorder(),
                         labelText: 'Designation',
@@ -643,6 +931,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
                   child: TextFormField(
+                    initialValue: _emailValue,
                     decoration: InputDecoration(
                         border: UnderlineInputBorder(),
                         labelText: 'Email',
@@ -665,6 +954,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
                   child: TextFormField(
+                    initialValue: _phoneValue,
                     decoration: InputDecoration(
                         border: UnderlineInputBorder(),
                         labelText: 'Phone',
@@ -780,6 +1070,8 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
                   child: TextFormField(
+                    maxLines: null,
+                    initialValue: _remarkValue,
                     decoration: InputDecoration(
                         border: UnderlineInputBorder(),
                         labelText: 'Remark',
@@ -799,7 +1091,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
                   ),
                 ),
                 SizedBox(height: 20,),
-                InkWell(
+                internetConnected ? InkWell(
                   onTap: (){_pickImage();},
                   child: Container(
                     width: double.infinity,
@@ -818,7 +1110,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
                         ),
                     ),
                   ),
-                ),
+                ) : SizedBox(),
                 SizedBox(height: 30,),
                 MaterialButton(
                   minWidth: double.infinity,

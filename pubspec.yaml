@@ -45,6 +45,10 @@ dependencies:
   firebase_core: ^2.30.0
   cloud_firestore: ^4.17.0
   flutter_contacts: ^1.1.7+1
+  connectivity_plus: ^6.0.2
+  firebase_storage: ^11.7.2
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
 
 dev_dependencies:
   flutter_test:
