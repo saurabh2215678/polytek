@@ -18,11 +18,13 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseFirestore.instance.settings = Settings(persistenceEnabled: true);
 
+
   StreamSubscription<List<ConnectivityResult>> subscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) {
     // This condition is for demo purposes only to explain every connection type.
 // Use conditions which work for your requirements.
     if (result.contains(ConnectivityResult.mobile)) {
-      getEnquariesFromFirebase(true);
+      print('running times');
+      // getEnquariesFromFirebase(true);
     } else if (result.contains(ConnectivityResult.none)) {
       // No available network types
     }

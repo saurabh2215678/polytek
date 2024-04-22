@@ -160,7 +160,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
   String _phoneValue = '';
   String _emailValue = '';
   String _remarkValue = '';
-  bool internetConnected = false;
+  bool internetConnected = true;
 
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
@@ -189,11 +189,33 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
         }else{
           _nameValue = '${visitorData?.name?.first} ${visitorData?.name?.last}' ?? '';
         }
+        print('visitordata ==');
+        print(visitorData?.phones);
+        if(visitorData?.phones != ''){
+          if(visitorData!.phones.length > 0){
+            _phoneValue = visitorData?.phones?.first?.number ?? '';
+          }
+        }
 
-        _phoneValue = visitorData?.phones?.first?.number ?? '';
-        _designationValue = visitorData?.organizations?.first?.department ?? '';
-        _emailValue = visitorData?.emails?.first?.address ?? '';
-        _comapnyValue = visitorData?.organizations?.first?.company ?? '';
+        if(visitorData?.organizations != ''){
+          if(visitorData!.organizations.length > 0){
+            _designationValue = visitorData?.organizations?.first?.department ?? '';
+          }
+        }
+
+        if(visitorData?.emails != ''){
+          if(visitorData!.emails.length > 0){
+            _emailValue = visitorData?.emails?.first?.address ?? '';
+          }
+        }
+
+        if(visitorData?.organizations != ''){
+          if(visitorData!.organizations.length > 0){
+            _comapnyValue = visitorData?.organizations?.first?.company ?? '';
+          }
+        }
+
+
         if(visitorData?.addresses != null){
           if(visitorData!.addresses.length > 0){
 
@@ -205,7 +227,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
 
       });
     }
-    // getEnquariesFromFirebase(true);
+    getEnquariesFromFirebase(true);
     _getExhibitionFn();
     _getCustomerFn();
     _getCountryFn();
@@ -596,9 +618,9 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
   }
 
   Future<void> _saveDatabyApi(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, imageFile) async {
-
+    var BaseUri = DataUtils.BaseUri;
     var request = http.MultipartRequest('POST',
-        Uri.parse('https://polyteksynergy.tekzini.com/api/v1/saveAppEnquiry'));
+        Uri.parse('$BaseUri/saveAppEnquiry'));
     request.fields.addAll({
       'exhibition_id': '$exbValue',
       'remark': '$remark',
@@ -711,7 +733,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
 
 
       }else{
-        await _saveDatatoFirebase(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, imageFile, savedByApiwithNet);
+        // await _saveDatatoFirebase(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, imageFile, savedByApiwithNet);
         await _saveDatabyApi(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, imageFile);
       }
 
@@ -851,6 +873,17 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
                             child: Text(customer.title),
                           );
                         }).toList(),
+                      ),
+                      IgnorePointer(
+                        ignoring: true,
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: UserIcon,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1091,7 +1124,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
                   ),
                 ),
                 SizedBox(height: 20,),
-                internetConnected ? InkWell(
+                InkWell(
                   onTap: (){_pickImage();},
                   child: Container(
                     width: double.infinity,
@@ -1110,7 +1143,7 @@ class _AddVisitorScreenState extends State<AddVisitorScreen> {
                         ),
                     ),
                   ),
-                ) : SizedBox(),
+                ),
                 SizedBox(height: 30,),
                 MaterialButton(
                   minWidth: double.infinity,

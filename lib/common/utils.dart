@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 class DataUtils {
   static List<String> staticList = ['Item 1', 'Item 2', 'Item 3'];
 
-  static String BaseUri = 'https://polyteksynergy.tekzini.com/api/v1';
+  static String BaseUri = 'https://polyteksynergy.com/api/v1';
 
   static Map<String, String> UserData = {
     'username': 'polytek',
@@ -67,9 +67,9 @@ class ProductSegment {
 }
 
 Future<void> _saveDatabyApi(exbValue, remark, customerType, companyName, name, designation, email, phone, country, product, doc) async {
-
+  var BaseUri = DataUtils.BaseUri;
   var request = http.MultipartRequest('POST',
-      Uri.parse('https://polyteksynergy.tekzini.com/api/v1/saveAppEnquiry'));
+      Uri.parse('$BaseUri/saveAppEnquiry'));
   request.fields.addAll({
     'exhibition_id': '$exbValue',
     'remark': '$remark',
